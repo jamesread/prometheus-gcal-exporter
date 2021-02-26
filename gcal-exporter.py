@@ -93,7 +93,7 @@ def run_flow(flow, store):
 gauge_collection = {}
 gauge_event = Gauge('gcal_event', 'desc', ['gcal_event_name'])
 
-def update_gauages_from_gcal(*unused_arguments_needed_for_scheduler):
+def update_gauges_from_gcal(*unused_arguments_needed_for_scheduler):
     logging.info("Updating gcal metrics ")
 
     now = datetime.datetime.utcnow().isoformat() + 'Z'
@@ -130,8 +130,11 @@ def get_gcal_client():
 
 def infinate_update_loop():
     while True:
-        update_gauages_from_gcal()
-        readEventsFiles()
+        try: 
+            update_gauges_from_gcal()
+            readEventsFiles()
+        except Exception as e:
+            logging.exception(e)
 
         sleep(args.updateDelaySeconds)
 
@@ -168,25 +171,33 @@ gauge_mins_available = Gauge('gcal_mins_available', 'Date metrics', ['date'])
 gauge_count = Gauge('gcal_count', 'Date metrics', ['date'])
 
 def analyizeMessage(event):
-    print("----")
+    logging.info("Analizing id:%s summary:%s", event['id'], event['summary'])
 
     if "dateTime" not in event['start']:
-        # all day event
+        logging.info("All day event, ignoring")
+        return
+
+    if "attendees" not in event or len(event['attendees']) < 2:
+        logging.info("%s Event with 0 or 1 attendees, ignoring", event['summary'])
         return
 
     event['minutes'] = getMinutes(event);
     event['isExternal'] = isExternal(event)
 
-    for k in event:
-        print(k, ":", event[k])
-
     start = parsedate(event['start']['dateTime'])
 
     datestamp = str(start.year) + "-" + str(start.month) + "-" + str(start.day)
 
+    logging.info("%s Date/time calculations are date:%s mins:%d", event['id'], datestamp, event['minutes']);
+
+    if args.debugEvents:
+        for k in event:
+            logging.debug("%s : %s", k, event[k])
+
     gauge_mins_available.labels(date=datestamp).set(480)
     gauge_mins_used.labels(date=datestamp).inc(event['minutes'])
     gauge_count.labels(date=datestamp).inc(1)
+
 
     if event['isExternal']:
         gauge_mins_external.labels(date=datestamp).inc(event['minutes'])
@@ -209,8 +220,6 @@ def readEventsFiles():
 
     for f in os.listdir('/opt/events'):
         with open('/opt/events/' + f, 'r') as jsonFile:
-            print(f)
-
             event = json.load(jsonFile)
 
             analyizeMessage(event)
@@ -236,6 +245,7 @@ if __name__ == '__main__':
     parser.add_argument("--updateDelaySeconds", type=int, default=300)
     parser.add_argument('--internalDomain', required = True);
     parser.add_argument("--promPort", type=int, default=8080)
+    parser.add_argument("--debugEvents", action='store_true')
     args = parser.parse_args()
 
     try:
