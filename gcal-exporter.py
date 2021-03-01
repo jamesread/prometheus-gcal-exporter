@@ -242,7 +242,7 @@ if __name__ == '__main__':
     parser.add_argument('labels', nargs='*', default=[])
     parser.add_argument('--clientSecretFile', default=get_file_path('client_secret.json'))
     parser.add_argument('--credentialsPath', default=get_file_path('login_cookie.dat'))
-    parser.add_argument("--updateDelaySeconds", type=int, default=300)
+    parser.add_argument("--updateDelaySeconds", type=int, default=1800)
     parser.add_argument('--internalDomain', required = True);
     parser.add_argument("--promPort", type=int, default=8080)
     parser.add_argument("--debugEvents", action='store_true')
