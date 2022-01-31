@@ -238,7 +238,7 @@ def main():
 
 if __name__ == '__main__':
     global args
-    parser = configargparse.ArgumentParser(default_config_files=[get_file_path('prometheus-gcal-exporter.cfg'), "/etc/prometheus-gcal-exporter.cfg"])
+    parser = configargparse.ArgumentParser(default_config_files=[get_file_path('prometheus-gcal-exporter.ini'), "/etc/prometheus-gcal-exporter/config.ini"])
     parser.add_argument('labels', nargs='*', default=[])
     parser.add_argument('--clientSecretFile', default=get_file_path('client_secret.json'))
     parser.add_argument('--credentialsPath', default=get_file_path('login_cookie.dat'))

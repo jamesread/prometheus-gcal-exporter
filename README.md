@@ -17,13 +17,11 @@ Get a client_secrets.json file .
 
 ## Config
 
-Example /etc/prometheus-gcal-exporter.cfg:
+Example /etc/prometheus-gcal-exporter/config.ini:
 
-----
-clientSecretFile=/opt/client_secret.json
-updateDelaySeconds=300
-internalDomain=example.com
-----
+    clientSecretFile=/opt/client_secret.json
+    updateDelaySeconds=300
+    internalDomain=example.com
 
 The container will run on port 8080/tcp by default. Metrics are available at
 the standard /metrics prom endpoint.
