@@ -15,11 +15,23 @@ from dateutil.parser import parse as parsedate
 import httplib2
 import configargparse
 
-from prometheus_client import start_http_server, Gauge
+from prometheus_client import make_wsgi_app, Gauge
+
+from flask import Flask, Response
+
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
+
+import waitress
+
+from threading import Thread
 
 from googleapiclient import discovery
 from oauth2client import client
 from oauth2client.file import Storage
+
+app = Flask("prometheus-gcal-exporter")
+
+READINESS = ""
 
 def get_file_path(filename):
     config_dir = os.path.join(os.path.expanduser("~"), ".prometheus-gcal-exporter")
@@ -27,7 +39,11 @@ def get_file_path(filename):
     if not os.path.exists(config_dir):
         os.mkdir(config_dir)
 
-    return os.path.join(config_dir, filename)
+    path = os.path.join(config_dir, filename)
+
+    logging.info("get_file_path %s exists: %s", path, os.path.exists(path))
+
+    return path
 
 def get_credentials():
     """Gets valid user credentials from storage.
@@ -36,9 +52,10 @@ def get_credentials():
     the OAuth2 flow is completed to obtain the new credentials.
     """
 
-    if not os.path.exists(args.clientSecretFile):
+    while not os.path.exists(args.clientSecretFile):
+        set_readiness("Waiting for client secret file")
         logging.fatal("Client secrets file does not exist: %s . You probably need to download this from the Google API console.", args.clientSecretFile)
-        sys.exit()
+        sleep(10)
 
     credentials_path = args.credentialsPath
 
@@ -78,12 +95,15 @@ def run_flow(flow, store):
             except Exception as e:
                 logging.critical(e)
 
+            set_readiness("Waiting for auth code")
             sleep(10);
     try:
         credential = flow.step2_exchange(code, http=None)
     except client.FlowExchangeError as e:
         logging.fatal("Auth failure: %s", str(e))
         sys.exit(1)
+
+    set_readiness("")
 
     store.put(credential)
     credential.set_store(store)
@@ -224,19 +244,46 @@ def readEventsFiles():
 
             analyizeMessage(event)
 
-def main():
-    logging.getLogger().setLevel(20)
+def start_waitress():
+    waitress.serve(app, host = "0.0.0.0", port = args.promPort)
+
+def set_readiness(v):
+    global READINESS
+
+    READINESS = v
+
+@app.route("/readyz")
+def readyz():
+    global READINESS
+
+    if READINESS == "":
+        return "OK"
+    else: 
+        return Response(READINESS, status = 503)
+
+@app.route("/")
+def index():
+    return "prometheus-gcal-exporter"
+
+def main(): 
+    logging.info("prometheus-gcal-exporter started on port %d", args.promPort)
+
+    app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
+        '/metrics': make_wsgi_app()
+    })
+    
+    t = Thread(target = start_waitress)
+    t.start()
 
     global GCAL_CLIENT
     GCAL_CLIENT = get_gcal_client()
-
-    logging.info("prometheus-gcal-exporter started on port %d", args.promPort)
-    start_http_server(args.promPort)
-
+    
     infinate_update_loop()
 
 
 if __name__ == '__main__':
+    logging.getLogger().setLevel(20)
+
     global args
     parser = configargparse.ArgumentParser(default_config_files=[get_file_path('prometheus-gcal-exporter.ini'), "/etc/prometheus-gcal-exporter/config.ini"])
     parser.add_argument('labels', nargs='*', default=[])
