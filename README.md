@@ -7,6 +7,12 @@ This makes it easy to use from stuff like Grafana, like so;
 
 ![Grafana screenshot](grafanaScreenshot.png)
 
+## Installation
+
+```bash
+docker create --name prometheus-gcal-exporter -p 8080:8080 ghcr.io/jamesread/prometheus-gcal-exporter:1.0.0
+```
+
 ## Setup 
 
 Get a client_secrets.json file .
