@@ -1,10 +1,11 @@
 name: Docker Image CI
 
+# Built when semantic-release creates a version tag on main.
 on:
   push:
     tags:
       - '*'
-      
+
 permissions:
   contents: write
   packages: write
@@ -22,7 +23,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
         registry: ghcr.io
-    
+
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag ghcr.io/jamesread/prometheus-gcal-exporter:${{ github.ref_name }}
 
