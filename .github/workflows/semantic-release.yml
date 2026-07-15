@@ -15,6 +15,9 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+    outputs:
+      new_release_published: ${{ steps.release.outputs.new_release_published }}
+      new_release_version: ${{ steps.release.outputs.new_release_version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -22,6 +25,7 @@ jobs:
           fetch-depth: 0
 
       - name: Semantic Release
+        id: release
         uses: cycjimmy/semantic-release-action@v4
         with:
           semantic_version: 24.2.3 # https://github.com/cycjimmy/semantic-release-action/issues/243
@@ -31,3 +35,12 @@ jobs:
             @semantic-release/github
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker-image:
+    name: Build and push Docker image
+    needs: semantic-release
+    if: needs.semantic-release.outputs.new_release_published == 'true'
+    uses: ./.github/workflows/docker-image.yml
+    with:
+      tag: ${{ needs.semantic-release.outputs.new_release_version }}
+    secrets: inherit
