@@ -7,5 +7,6 @@ RUN dnf -y update && \
 	dnf clean all
 
 COPY gcal-exporter.py /usr/local/sbin/gcal-exporter
+COPY gcal_classify.py /usr/local/sbin/gcal_classify.py
 
 ENTRYPOINT [ "/usr/local/sbin/gcal-exporter" ] 

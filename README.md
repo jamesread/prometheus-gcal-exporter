@@ -25,9 +25,33 @@ Get a client_secrets.json file .
 
 Example /etc/prometheus-gcal-exporter/config.ini:
 
-    clientSecretFile=/opt/client_secret.json
-    updateDelaySeconds=300
-    internalDomain=example.com
+```ini
+clientSecretFile=/opt/client_secret.json
+updateDelaySeconds=300
+internalDomain=example.com
+lookbackDays=14
+meetingClassPrefix=["triage=TRIAGE:", "incident=INC:", "customer=CX:"]
+meetingClassColor=["focus=9"]
+```
+
+- `lookbackDays` — how many days of **past** events to scrape (default `14`).
+- `meetingClassPrefix` — repeatable `className=PREFIX` rules; first case-insensitive title prefix match wins.
+- `meetingClassColor` — repeatable `className=colorId` rules using Google Calendar `colorId` when no prefix matches.
+
+Unmatched meetings are labeled `class="unclassified"`.
 
 The container will run on port 8080/tcp by default. Metrics are available at
 the standard /metrics prom endpoint.
+
+## Metrics
+
+| Metric | Labels | Meaning |
+|--------|--------|---------|
+| `gcal_mins_used` / `gcal_count` | `date` | Total meeting minutes / count |
+| `gcal_mins_internal` / `gcal_count_internal` | `date` | Internal (no external attendees) |
+| `gcal_mins_external` / `gcal_count_external` | `date` | External attendees present |
+| `gcal_mins_available` | `date` | Assumed available minutes (480) |
+| `gcal_mins_by_class` / `gcal_count_by_class` | `date`, `class` | Minutes / count by meeting class |
+| `gcal_attendees` | `date`, `optionality`, `response` | Attendee RSVP counts (`mandatory`/`optional` × `accepted`/`declined`/`tentative`/`needsAction`) |
+
+Gauges are rebuilt each scrape from the lookback window. Historical trends come from Prometheus storage (e.g. Grafana `sum_over_time`), not from an in-process counter.
